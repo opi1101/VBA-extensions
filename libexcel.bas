@@ -272,6 +272,20 @@ Dim Sht As Excel.Worksheet
   Next Sht
 End Sub
 
+'@Description("Sets a workbook's BuiltinDocumentProperties.")
+Sub WorkbookSetBuiltinDocumentProperties(Wbk As Excel.Workbook, Optional sTitle As String, Optional sAuthor As String, Optional sAppName As String, _
+Optional sCompany As String, Optional sComments As String, Optional sKeywords As String, Optional sCategory As String)
+  With Wbk.BuiltinDocumentProperties
+    If sTitle <> vbNullString Then .Item("Title") = sTitle
+    If sAuthor <> vbNullString Then .Item("Author") = sAuthor
+    If sAppName <> vbNullString Then .Item("Application Name") = sAppName
+    If sCompany <> vbNullString Then .Item("Company") = sCompany
+    If sComments <> vbNullString Then .Item("Comments") = sComments
+    If sKeywords <> vbNullString Then .Item("Keywords") = sKeywords
+    If sCategory <> vbNullString Then .Item("Category") = sCategory
+  End With
+End Sub
+
 '@Description("Returns the specified Worksheet object. Raises an error if Worksheet does not exist.")
 Function Worksheets2(Sht As Variant, Optional Wbk As Excel.Workbook) As Excel.Worksheet
 Dim lErr As Long
@@ -389,8 +403,8 @@ Function WorksheetFindLastCell(Sht As Variant, Optional Wbk As Excel.Workbook) A
 End Function
 
 '@Description("Returns a worksheet's parent workbook object.")
-Function WorksheetWorkbook(Sht As Variant) As Excel.Workbook
-  Set WorksheetWorkbook = Worksheets2(Sht).Parent
+Function WorksheetWorkbook(Sht As Variant, Optional Wbk As Excel.Workbook) As Excel.Workbook
+  Set WorksheetWorkbook = Worksheets2(Sht, Wbk).Parent
 End Function
 
 '@Description("Returns True if each cell in a range is empty. Works if range has multiple areas.")
@@ -721,3 +735,16 @@ Dim rn As Range
   Set rn = Columns(Col)
   VariantIsValidColumnID = (Err.Number = 0)
 End Function
+
+'@Description("Sets the visibility of the gridlines on a worksheet.")
+Sub WindowsSetGridLines(Sht As Variant, Display As Boolean, Optional Wbk As Excel.Workbook)
+Dim vw As WorksheetView
+
+  For Each vw In WorksheetWorkbook(Sht, Wbk).Windows(1).SheetViews
+    If vw.Sheet.Name = Worksheets2(Sht, Wbk).Name Then
+      vw.DisplayGridlines = Display
+      Exit Sub
+    End If
+  Next vw
+  Set vw = Nothing
+End Sub

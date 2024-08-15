@@ -319,6 +319,19 @@ Dim x As Long
   Set fd = Nothing
 End Function
 
+'@Description("Returns True if font is available on the current machine.")
+Function FontExists(FontName As String) As Boolean
+Dim f As StdFont
+
+  On Error Resume Next
+  Set f = New StdFont
+  With f
+    .Name = FontName
+    FontExists = (StrComp(FontName, .Name, vbTextCompare) = 0)
+    FontName = .Name
+  End With
+End Function
+
 '@Description("Returns the owner of a directory in domain\username format. Raises an error if the directory is unavailable or doesn't exist.")
 Function DirectoryOwner(ByVal Dirpath As String) As String
 Dim secUtil As Object, secDescr As Object, fso As Object
