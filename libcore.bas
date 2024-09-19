@@ -28,7 +28,7 @@ Dim x As Long
 End Function
 
 '@Description("Returns the number of dimensions of an array. Raises an error if the argument is not an array type.")
-Function ArrayDimensionCount(Arr As Variant) As Long
+Function ArrayDimensionCount(Arr As Variant) As Byte
 Dim iCount As Integer
 Dim lSize As Long
 
@@ -47,20 +47,43 @@ End Function
 
 '@Description("Returns the number of elements in the array's specific dimension. TargetDim can be omitted if array is 1D.")
 Function ArrayDimensionLength(Arr As Variant, Optional ByVal TargetDim As Long) As Long
-Dim lDim As Long
+Dim bDim As Byte
 
   If (Not ArrayIsDimmed(Arr)) Then _
     Err.Raise 13, "libcore.ArrayDimensionLength", _
     StringMultiline("Array is not assigned or not an array type.", "Type: " & TypeName(Arr))
 
-  lDim = ArrayDimensionCount(Arr)
-  If lDim = 1 Then TargetDim = 1
+  bDim = ArrayDimensionCount(Arr)
+  If bDim = 1 Then TargetDim = 1
   
-  If TargetDim < 1 Or TargetDim > lDim Then _
+  If TargetDim < 1 Or TargetDim > bDim Then _
     Err.Raise 9, "libcore.ArrayDimensionLength", _
     StringMultiline("TargetDim is out of bounds.", _
-    "Array dimension count: " & lDim, "TargetDim: " & TargetDim)
+    "Array dimension count: " & bDim, "TargetDim: " & TargetDim)
   ArrayDimensionLength = Abs(LBound(Arr, TargetDim) - UBound(Arr, TargetDim)) + 1
+End Function
+
+'@Description("Returns a two dimensional array, where first and second dimensions are swapped.")
+Function ArrayTranspose(Arr2D As Variant) As Variant
+Dim vResult As Variant
+Dim x As Long, y As Long, bDim As Byte
+
+  If (Not ArrayIsDimmed(Arr2D)) Then _
+    Err.Raise 13, "libcore.ArrayTranspose", _
+    StringMultiline("Array is not assigned or not an array type.", "Type: " & TypeName(Arr2D))
+  bDim = ArrayDimensionCount(Arr2D)
+  If bDim <> 2 Then _
+    Err.Raise 13, "libexcel.ArrayToRange", _
+    StringMultiline("Arr2D parameter must be a two dimensional array.", "Dimensions: " & bDim)
+  
+  
+  ReDim vResult(LBound(Arr2D, 2) To UBound(Arr2D, 2), LBound(Arr2D, 1) To UBound(Arr2D, 1))
+  For x = LBound(Arr2D, 1) To UBound(Arr2D, 1)
+    For y = LBound(Arr2D, 2) To UBound(Arr2D, 2)
+      vResult(y, x) = Arr2D(x, y)
+    Next y
+  Next x
+  ArrayTranspose = vResult
 End Function
 
 '@Description("Returns True if an array has only one dimension. Raises an error if the argument is not an array type.")
@@ -81,14 +104,11 @@ End Function
 
 '@Description("Resizes the specified dimension of a 1D or 2D array. Resizes the original array, keeps values with ReDim Preserve keywords.")
 Sub ArrayResizeDimension(Arr As Variant, TargetDim As Integer, DimNewSize As Long)
-Dim lDim As Long
-Dim bIsExcel As Boolean
-Dim xlApp As Object
+Dim bDim As Byte
 
   On Error GoTo ERRH
-  bIsExcel = ApplicationIsExcel(Application)
-  lDim = ArrayDimensionCount(Arr)
-  Select Case lDim
+  bDim = ArrayDimensionCount(Arr)
+  Select Case bDim
     Case 1 ' 1D array
       If DimNewSize < LBound(Arr) Then _
         Err.Raise 9, "libcore.ArrayResizeDimension", StringMultiline("DimNewSize cannot be less than the lower bound of the array.", _
@@ -98,19 +118,13 @@ Dim xlApp As Object
     Case 2 ' 2D array
       Select Case TargetDim
         Case 1
-          If bIsExcel Then
-            Set xlApp = Application
-          Else
-            Set xlApp = NewExcelObject
-          End If
           If DimNewSize < LBound(Arr, 1) Then _
             Err.Raise 9, "libcore.ArrayResizeDimension", StringMultiline("DimNewSize cannot be less than the lower bound of the 1st dimension.", _
             "Array 1st dim. lower bound: " & LBound(Arr, 1), _
             "DimNewSize: " & DimNewSize)
-          Arr = xlApp.Transpose(Arr)
+          Arr = ArrayTranspose(Arr)
           ReDim Preserve Arr(LBound(Arr, 1) To UBound(Arr, 1), LBound(Arr, 2) To DimNewSize)
-          Arr = xlApp.Transpose(Arr)
-          If (Not bIsExcel) Then xlApp.Quit
+          Arr = ArrayTranspose(Arr)
         Case 2
           If DimNewSize < LBound(Arr, 2) Then _
             Err.Raise 9, "libcore.ArrayResizeDimension", StringMultiline("DimNewSize cannot be less than the lower bound of the 2nd dimension.", _
@@ -119,15 +133,14 @@ Dim xlApp As Object
           ReDim Preserve Arr(LBound(Arr, 1) To UBound(Arr, 1), LBound(Arr, 2) To DimNewSize)
         Case Else
           Err.Raise 9, "libcore.ArrayResizeDimension", StringMultiline("TargetDim argument is out of bounds.", _
-            "Array dimension count: " & lDim, _
+            "Array dimension count: " & bDim, _
             "Target dimension: " & TargetDim)
       End Select
     Case Else ' More than 2 dimensions
-      Err.Raise 5, "libcore.ArrayResizeDimension", "Array with " & lDim & " dimensions is not supported."
+      Err.Raise 5, "libcore.ArrayResizeDimension", "Array with " & bDim & " dimensions is not supported."
   End Select
 Exit Sub
 ERRH:
-  If (Not bIsExcel) Then xlApp.Quit
   Err.Raise Err.Number, "libcore.ArrayResizeDimension", Err.Description
 End Sub
 
@@ -135,7 +148,7 @@ End Sub
 Function ArrayToDictionary(Arr As Variant, Optional KeyColumn As Long, Optional ItemColumn As Long, _
   Optional LoopStep As Long = 1, Optional YieldAt As Long) As Object
 Dim d As Object
-Dim lDim As Long, x As Long
+Dim bDim As Byte, x As Long
 
   If (Not ArrayIsDimmed(Arr)) Then _
     Err.Raise 13, "libcore.ArrayToDictionary", StringMultiline("Array is not assigned or not an array type.", _
@@ -147,10 +160,10 @@ Dim lDim As Long, x As Long
     Err.Raise 9, "libcore.ArrayToDictionary", StringMultiline("YieldAt argument must be equal or greater than zero.", _
     "YieldAt: " & YieldAt)
 
-  lDim = ArrayDimensionCount(Arr)
+  bDim = ArrayDimensionCount(Arr)
   Set d = NewDictionaryObject
   
-  Select Case lDim
+  Select Case bDim
     Case 1
       For x = LBound(Arr) To UBound(Arr) Step LoopStep
         Select Case True
@@ -180,23 +193,23 @@ Dim lDim As Long, x As Long
           If x Mod YieldAt = 0 Then DoEvents
       Next x
     Case Else
-      Err.Raise 5, "libcore.ArrayToDictionary", "Arrays with " & lDim & " dimensions is not supported."
+      Err.Raise 5, "libcore.ArrayToDictionary", "Arrays with " & bDim & " dimensions is not supported."
   End Select
   Set ArrayToDictionary = d
 End Function
 
 '@Description("Writes an array to a csv file. Changes/adds extension to Filepath argument.")
 Sub ArrayToCSV(Arr As Variant, ByVal Filepath As String, Optional Delimiter As String = ";")
-Dim x As Long, y As Long, lDim As Long, lFile As Long
+Dim x As Long, y As Long, bDim As Byte, lFile As Long
 Dim s As String
 
   If (Not ArrayIsDimmed(Arr)) Then _
     Err.Raise 13, "libcore.ArrayToCSV", _
     StringMultiline("Array is not assigned or not an array type.", "Type: " & TypeName(Arr))
   
-  lDim = ArrayDimensionCount(Arr)
+  bDim = ArrayDimensionCount(Arr)
   On Error GoTo ERRH
-  Select Case lDim
+  Select Case bDim
     Case 1
       s = Join(Arr, Delimiter & vbNewLine)
     Case 2
@@ -207,7 +220,7 @@ Dim s As String
         Next y
       Next x
     Case Else
-      Err.Raise 5, "libcore.ArrayToCSV", "Array with " & lDim & " dimensions is not supported."
+      Err.Raise 5, "libcore.ArrayToCSV", "Array with " & bDim & " dimensions is not supported."
   End Select
   
   On Error GoTo ERR_FILE
@@ -221,10 +234,10 @@ Exit Sub
 ERRH:
   Select Case Err.Number
     Case 438
-      If lDim = 1 Then
+      If bDim = 1 Then
         Err.Raise Err.Number, "libcore.ArrayToCSV", StringMultiline("Cannot write objects to a csv file.", _
         "Error: " & Err.Description)
-      ElseIf lDim = 2 Then
+      ElseIf bDim = 2 Then
         Err.Raise Err.Number, "libcore.ArrayToCSV", StringMultiline("Cannot write objects to a csv file.", _
         "Error: " & Err.Description, "Item: Array(" & x & "," & y & ")")
       End If
@@ -240,12 +253,14 @@ End Sub
 
 '@Description("Returns the owner of a file in domain\username format. Raises an error if the file is unavailable or doesn't exist.")
 Function FileOwner(ByVal Filepath As String) As String
-Dim secUtil As Object, secDescr As Object, fso As Object
+Dim secUtil As Object, secDescr As Object
+
+  If StringIsEmptyOrWhitespace(Filepath) Then _
+    Err.Raise 53, "libcore.FileOwner", StringMultiline("Filepath not provided.", "Filepath: " & Filepath)
 
   Set secUtil = NewClassReference("ADsSecurityUtility")
-  Set fso = NewFileSystemObject
 
-  If (Not fso.FileExists(Filepath)) Then _
+  If Dir(Filepath, vbNormal) = vbNullString Then _
     Err.Raise 53, "libcore.FileOwner", StringMultiline("File not found or unavailable.", "Filepath: " & Filepath)
 
   On Error Resume Next
@@ -334,12 +349,14 @@ End Function
 
 '@Description("Returns the owner of a directory in domain\username format. Raises an error if the directory is unavailable or doesn't exist.")
 Function DirectoryOwner(ByVal Dirpath As String) As String
-Dim secUtil As Object, secDescr As Object, fso As Object
+Dim secUtil As Object, secDescr As Object
+
+  If StringIsEmptyOrWhitespace(Dirpath) Then _
+    Err.Raise 53, "libcore.DirectoryOwner", StringMultiline("Directory path not provided.", "Path: " & Dirpath)
 
   Set secUtil = NewClassReference("ADsSecurityUtility")
-  Set fso = NewFileSystemObject
 
-  If (Not fso.FolderExists(Dirpath)) Then _
+  If Dir(Dirpath, vbDirectory) = vbNullString Then _
     Err.Raise 53, "libcore.DirectoryOwner", StringMultiline("Directory not found or unavailable.", "Path: " & Dirpath)
 
   On Error Resume Next
@@ -349,23 +366,19 @@ End Function
 
 '@Description("Creates all the folders and subfolders in the specified path. Raises an error if the path is an existing file.")
 Function DirectoryCreate(ByVal Dirpath As String) As Boolean
-Static fso As Object
-
-  If (fso Is Nothing) Then Set fso = NewFileSystemObject
-  With fso
-    Select Case True
-      Case .FileExists(Dirpath)
-        Err.Raise 9, "libcore.DirectoryCreate", StringMultiline("Failed to create directory. DirPath argument is an existing file.", _
-          "DirPath: " & Dirpath)
-      Case .FolderExists(Dirpath)
-        DirectoryCreate = True
-        Exit Function
-      Case DirectoryCreate(.GetParentFolderName(Dirpath))
-        On Error Resume Next
-        DirectoryCreate = (Not .CreateFolder(Dirpath) Is Nothing)
-        On Error GoTo 0
-    End Select
-  End With
+  Select Case True
+    Case Dir(Dirpath, vbNormal) <> vbNullString
+      Err.Raise 9, "libcore.DirectoryCreate", StringMultiline("Failed to create directory. DirPath argument is an existing file.", _
+        "DirPath: " & Dirpath)
+    Case Dir(Dirpath, vbDirectory) <> vbNullString
+      DirectoryCreate = True
+      Exit Function
+    Case DirectoryCreate(PathParentDirectory(Dirpath))
+      On Error Resume Next
+      MkDir Dirpath
+      DirectoryCreate = (Err.Number = 0)
+      On Error GoTo 0
+  End Select
 End Function
 
 '@Description("Returns the folder path selected by the user. Returns vbNullString if no folder was selected.")
@@ -444,12 +457,11 @@ Function NewRegExpObject() As Object
   Set NewRegExpObject = NewClassReference("VBScript.RegExp")
 End Function
 
-'@Description("Returns the currently running Excel application object, or starts a new one.")
+'@Description("Returns the currently running Excel instance, or starts a new one. Returns nothing if Excel is unavailable on the machine.")
 Function NewExcelObject() As Object
   On Error Resume Next
   Set NewExcelObject = GetObject(, "Excel.Application")
   If Err.Number <> 0 Then
-    On Error GoTo 0
     Set NewExcelObject = NewClassReference("Excel.Application")
   End If
 End Function
@@ -494,35 +506,35 @@ End Function
 
 '@Description("Returns the extension (including the period '.') of the specified path string. Returns vbNullString if no extension was found.")
 Function PathExtension(ByVal Path As String) As String
-Dim lidx As Long
+Dim lIdx As Long
 
-  lidx = InStrRev(Path, ".")
-  If lidx > 0 Then _
-    PathExtension = Right$(Path, Len(Path) - lidx + 1)
+  lIdx = InStrRev(Path, ".")
+  If lIdx > 0 Then _
+    PathExtension = Right$(Path, Len(Path) - lIdx + 1)
 End Function
 
 '@Description("Returns the specified path's parent directory.")
 Function PathParentDirectory(ByVal Path As String) As String
   On Error Resume Next
-  PathParentDirectory = Left$(Path, InStrRev(Path, "\") - 1)
+  PathParentDirectory = Left$(Path, InStrRev(Path, Application.PathSeparator) - 1)
 End Function
 
-'@Description("Returns a path where paramarray values are joined by backslash character(\).")
+'@Description("Returns a path where paramarray values are joined by Application.PathSeparator character.")
 Function PathCombine(ParamArray Args() As Variant) As String
-  PathCombine = Join(Args, "\")
+  PathCombine = Join(Args, Application.PathSeparator)
 End Function
 
 '@Description("Returns the new filepath, with the new extension. Perion character is acceppted or can be omitted.")
 Function PathChangeExtension(ByVal Path As String, ByVal NewExtension As String) As String
-Dim lidx As Long
+Dim lIdx As Long
 
   If Left$(NewExtension, 1) <> "." Then NewExtension = "." & NewExtension
-  lidx = InStrRev(Path, ".")
-  Select Case lidx
+  lIdx = InStrRev(Path, ".")
+  Select Case lIdx
     Case 0
       PathChangeExtension = Path & NewExtension
     Case Else
-      PathChangeExtension = Left$(Path, lidx - 1) & NewExtension
+      PathChangeExtension = Left$(Path, lIdx - 1) & NewExtension
   End Select
 End Function
 

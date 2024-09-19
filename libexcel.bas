@@ -94,7 +94,7 @@ Dim lErr As Long
     Err.Raise 5, "libexcel.ArrayToRange", StringMultiline("Range with multiple areas is not supported.", _
     "Areas count: " & TargetCell.Areas.Count, _
     "TargetCell: " & TargetCell.Address)
-  If (Not ArrayDimensionCount(Arr2D)) <> 2 Then _
+  If (ArrayDimensionCount(Arr2D)) <> 2 Then _
     Err.Raise 13, "libexcel.ArrayToRange", _
     StringMultiline("Arr2D parameter must be a two dimensional array.", "Dimensions: " & ArrayDimensionCount(Arr2D))
   
@@ -224,42 +224,26 @@ Function WorkbookMacroName(ByVal MacroName As String, Optional Wbk As Workbook) 
 End Function
 
 '@Description("Returns an Excel workbook's lockfile path. Raises an error if Path file is unavailable.")
-Function WorkbookLockfilePath(ByVal Path As String, Optional FileSysObj As Object) As String
-Dim fs As Object
-Dim f As Object
+Function WorkbookLockfilePath(ByVal Path As String) As String
+Dim sName As String
 
-  Set fs = FileSysObj
-  If (fs Is Nothing) Then Set fs = NewFileSystemObject
-  
-  If LCase$(TypeName$(fs)) <> "filesystemobject" Then _
-    Err.Raise 13, "libexcel.WorkbookLockfilePath", _
-    StringMultiline("FileSysObj argument must be type of Scripting.FileSystemObject.", "Type: " & TypeName$(fs))
+  If StringIsEmptyOrWhitespace(Path) Then _
+    Err.Raise 53, "libexcel.WorkbookLockfilePath", StringMultiline("Filepath not provided.", "Filepath: " & Path)
 
-  If (Not fs.FileExists(Path)) Then _
-    Err.Raise 53, "libexcel.WorkbookLockfilePath", StringMultiline("File not found or unavailable.", "Filepath: " & Path)
-  
   On Error Resume Next
-  Set f = fs.GetFile(Path)
-  WorkbookLockfilePath = f.ParentFolder & "\~$" & f.Name
+  sName = Dir(Path, vbNormal)
+  On Error GoTo 0
+  
+  If StrPtr(sName) = 0 Then _
+    Err.Raise 53, "libexcel.WorkbookLockfilePath", StringMultiline("File not found or unavailable.", "Filepath: " & Path)
+
+  WorkbookLockfilePath = PathCombine(PathParentDirectory(Path), "~$" & sName)
 End Function
 
 '@Description("Returns the owner of a workbook's lockfile in domain\username format. Raises an error if Path file is unavailable.")
-Function WorkbookLockedBy(ByVal Path As String, Optional FileSysObj As Object) As String
-Dim fs As Object
-Dim f As Object
-Dim s As String
-
-  Set fs = FileSysObj
-  If (fs Is Nothing) Then Set fs = NewFileSystemObject
-  
-  If LCase$(TypeName$(fs)) <> "filesystemobject" Then _
-    Err.Raise 13, "libexcel.WorkbookLockedBy", _
-    StringMultiline("FileSysObj argument must be type of Scripting.FileSystemObject.", "Type: " & TypeName$(fs))
-  
-  s = WorkbookLockfilePath(Path, fs)
+Function WorkbookLockedBy(ByVal Path As String) As String
   On Error Resume Next
-  Set f = fs.GetFile(s)
-  WorkbookLockedBy = FileOwner(Path)
+  WorkbookLockedBy = FileOwner(WorkbookLockfilePath(Path))
 End Function
 
 '@Description("Clears all filters in the specified workbook object.")
@@ -456,9 +440,9 @@ Function RangeDataBody(Target As Excel.Range, Optional HeaderRowCount As Long = 
   If HeaderRowCount < 1 Then _
     Err.Raise 9, "libexcel.RangeDataBody", StringMultiline("HeaderRowCount must be greater zero.", _
     "HeaderRowCount: " & HeaderRowCount)
-  If HeaderRowCount <= Target.Rows.Count Then _
+  If HeaderRowCount >= Target.Rows.Count Then _
     Err.Raise 9, "libexcel.RangeDataBody", StringMultiline("HeaderRowCount must be greater than Target total row count.", _
-    "HeaderRowCount: " & HeaderRowCount, "Target rows count: " & Target.Rows.Count)
+    "HeaderRowCount: " & HeaderRowCount, "Target rows count: " & Target.Rows.Count, "Target: " & Target.Address)
 
   With Target
     Set RangeDataBody = .Offset(HeaderRowCount).Resize(.Rows.Count - HeaderRowCount)
