@@ -216,7 +216,7 @@ Dim b As Boolean
   Application.DisplayAlerts = b
 End Function
 
-'@Description("Returns Err.Number from SaveAs process. 0 means SaveAs was successfull. Creates (sub)directories needed. Does not prompt or raise an error if save fails.")
+'@Description("Returns Err.Number from SaveAs process. 0 means SaveAs was successfull. Creates directories needed. Does not prompt or raise an error if save fails.")
 Function WorkbookSaveAsInstant(Wbk As Workbook, ByVal SavePath As String, _
 Optional sPassword As Variant, Optional sWritePassword As Variant) As Long
 Dim b As Boolean

@@ -73,7 +73,7 @@ Dim x As Long, y As Long, bDim As Byte
     StringMultiline("Array is not assigned or not an array type.", "Type: " & TypeName(Arr2D))
   bDim = ArrayDimensionCount(Arr2D)
   If bDim <> 2 Then _
-    Err.Raise 13, "libcore.ArrayToRange", _
+    Err.Raise 13, "libcore.ArrayTranspose", _
     StringMultiline("Arr2D parameter must be a two dimensional array.", "Dimensions: " & bDim)
   
   
@@ -84,6 +84,34 @@ Dim x As Long, y As Long, bDim As Byte
     Next y
   Next x
   ArrayTranspose = vResult
+End Function
+
+'@Description("Returns a new array where elements are populated from the parameter array.")
+Function ArrayClone(Arr As Variant) As Variant
+Dim vResult As Variant
+Dim x As Long, y As Long, bDim As Byte
+
+  If (Not ArrayIsDimmed(Arr)) Then _
+    Err.Raise 13, "libcore.ArrayClone", _
+    StringMultiline("Array is not assigned or not an array type.", "Type: " & TypeName(Arr))
+  bDim = ArrayDimensionCount(Arr)
+  Select Case bDim
+    Case 1
+      ReDim vResult(LBound(Arr) To UBound(Arr))
+      For x = LBound(Arr) To UBound(Arr)
+        vResult(x) = Arr(x)
+      Next x
+    Case 2
+      ReDim vResult(LBound(Arr, 1) To UBound(Arr, 1), LBound(Arr, 2) To UBound(Arr, 2))
+      For x = LBound(Arr, 1) To UBound(Arr, 1)
+        For y = LBound(Arr, 2) To UBound(Arr, 2)
+          vResult(x, y) = Arr(x, y)
+        Next y
+      Next x
+    Case Else
+      Err.Raise 5, "libcore.ArrayClone", "Array with " & bDim & " dimensions is not supported."
+  End Select
+  ArrayClone = vResult
 End Function
 
 '@Description("Returns the index of the item's first occurance in a one dimensional array.")
@@ -591,6 +619,21 @@ Dim lIdx As Long
     Case Else
       PathChangeExtension = Left$(Path, lIdx - 1) & NewExtension
   End Select
+End Function
+
+'@Description("Returns a random number between Min and Max parameter values. Min and Max values are inclusive.")
+Function RandomNumber(Min As Double, Max As Double) As Double
+  Randomize
+  RandomNumber = (Max - Min + 1) * Rnd + Min
+  Select Case True
+    Case RandomNumber < Min, RandomNumber > Max
+      RandomNumber = RandomNumber(Min, Max)
+  End Select
+End Function
+
+'@Description("Returns the parameter string where the first character is capitalized.")
+Function StringCapitalize(ByVal Text As String) As String
+  StringCapitalize = UCase$(Left$(Text, 1)) & LCase$(Mid$(Text, 2))
 End Function
 
 '@Description("Returns a new string where paramarray values are joined by the given delimiter.")
