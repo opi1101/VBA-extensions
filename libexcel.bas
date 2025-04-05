@@ -196,7 +196,7 @@ Dim Wbk As Workbook
   On Error GoTo 0
 End Function
 
-'@Description("Returns a Workbook object or Nothing. Opens the specified Workbook, does not prompt or raise an error if fails. ")
+'@Description("Returns a Workbook object or Nothing. Opens the specified Workbook, does not prompt or raise an error if fails.")
 Function WorkbookOpenInstant(ByVal Path As String, ReadOnly As Boolean, _
 Optional sPassword As Variant, Optional sWritePassword As Variant) As Excel.Workbook
 Dim b As Boolean
@@ -205,7 +205,7 @@ Dim b As Boolean
   Application.DisplayAlerts = False
   On Error Resume Next
   Select Case True
-    Case (Not IsMissing(sPassword)), (Not IsMissing(sWritePassword))
+    Case (Not IsMissing(sPassword)) And (Not IsMissing(sWritePassword))
       Set WorkbookOpenInstant = Workbooks.Open(Filename:=Path, ReadOnly:=ReadOnly, _
       Password:=sPassword, WriteResPassword:=sWritePassword)
     Case (Not IsMissing(sPassword))
@@ -213,7 +213,31 @@ Dim b As Boolean
     Case (Not IsMissing(sWritePassword))
       Set WorkbookOpenInstant = Workbooks.Open(Filename:=Path, ReadOnly:=ReadOnly, WriteResPassword:=sWritePassword)
   End Select
-  On Error GoTo 0
+  Application.DisplayAlerts = b
+End Function
+
+'@Description("Returns Err.Number from SaveAs process. 0 means SaveAs was successfull. Creates (sub)directories needed. Does not prompt or raise an error if save fails.")
+Function WorkbookSaveAsInstant(Wbk As Workbook, ByVal SavePath As String, _
+Optional sPassword As Variant, Optional sWritePassword As Variant) As Long
+Dim b As Boolean
+Dim sDir As String
+
+  sDir = PathParentDirectory(SavePath)
+  b = Application.DisplayAlerts
+  Application.DisplayAlerts = False
+  On Error Resume Next
+  DirectoryCreate sDir
+  Select Case True
+    Case (Not IsMissing(sPassword)) And (Not IsMissing(sWritePassword))
+      Wbk.SaveAs Filename:=SavePath, Password:=sPassword, WriteResPassword:=sWritePassword
+    Case (Not IsMissing(sPassword))
+      Wbk.SaveAs Filename:=SavePath, Password:=sPassword
+    Case (Not IsMissing(sWritePassword))
+      Wbk.SaveAs Filename:=SavePath, WriteResPassword:=sWritePassword
+    Case Else
+      Wbk.SaveAs Filename:=SavePath
+  End Select
+  WorkbookSaveAsInstant = Err.Number
   Application.DisplayAlerts = b
 End Function
 

@@ -73,7 +73,7 @@ Dim x As Long, y As Long, bDim As Byte
     StringMultiline("Array is not assigned or not an array type.", "Type: " & TypeName(Arr2D))
   bDim = ArrayDimensionCount(Arr2D)
   If bDim <> 2 Then _
-    Err.Raise 13, "libexcel.ArrayToRange", _
+    Err.Raise 13, "libcore.ArrayToRange", _
     StringMultiline("Arr2D parameter must be a two dimensional array.", "Dimensions: " & bDim)
   
   
@@ -84,6 +84,58 @@ Dim x As Long, y As Long, bDim As Byte
     Next y
   Next x
   ArrayTranspose = vResult
+End Function
+
+'@Description("Returns the index of the item's first occurance in a one dimensional array.")
+Function ArrayFirstIndex(Arr As Variant, Item As Variant) As Long
+Dim x As Long
+Dim bDim As Byte
+
+  If (Not ArrayIsDimmed(Arr)) Then _
+    Err.Raise 13, "libcore.ArrayFirstIndex", _
+    StringMultiline("Array is not assigned or not an array type.", "Type: " & TypeName(Arr))
+  bDim = ArrayDimensionCount(Arr)
+  If bDim <> 1 Then _
+    Err.Raise 13, "libcore.ArrayFirstIndex", _
+    StringMultiline("Arr parameter must be a one dimensional array.", "Dimensions: " & bDim)
+  For x = LBound(Arr) To UBound(Arr)
+    Select Case True
+      Case VarType(Arr(x)) = vbObject
+        If Arr(x) Is Item Then
+          ArrayFirstIndex = x
+          Exit For
+        End If
+      Case Arr(x) = Item
+        ArrayFirstIndex = x
+        Exit For
+    End Select
+  Next x
+End Function
+
+'@Description("Returns the index of the item's last occurance in a one dimensional array.")
+Function ArrayLastIndex(Arr As Variant, Item As Variant) As Long
+Dim x As Long
+Dim bDim As Byte
+
+  If (Not ArrayIsDimmed(Arr)) Then _
+    Err.Raise 13, "libcore.ArrayLastIndex", _
+    StringMultiline("Array is not assigned or not an array type.", "Type: " & TypeName(Arr))
+  bDim = ArrayDimensionCount(Arr)
+  If bDim <> 1 Then _
+    Err.Raise 13, "libcore.ArrayLastIndex", _
+    StringMultiline("Arr parameter must be a one dimensional array.", "Dimensions: " & bDim)
+  For x = UBound(Arr) To LBound(Arr) Step -1
+    Select Case True
+      Case VarType(Arr(x)) = vbObject
+        If Arr(x) Is Item Then
+          ArrayLastIndex = x
+          Exit For
+        End If
+      Case Arr(x) = Item
+        ArrayLastIndex = x
+        Exit For
+    End Select
+  Next x
 End Function
 
 '@Description("Returns True if an array has only one dimension. Raises an error if the argument is not an array type.")
@@ -257,9 +309,7 @@ Dim secUtil As Object, secDescr As Object
 
   If StringIsEmptyOrWhitespace(Filepath) Then _
     Err.Raise 53, "libcore.FileOwner", StringMultiline("Filepath not provided.", "Filepath: " & Filepath)
-
   Set secUtil = NewClassReference("ADsSecurityUtility")
-
   If Dir(Filepath, vbNormal) = vbNullString Then _
     Err.Raise 53, "libcore.FileOwner", StringMultiline("File not found or unavailable.", "Filepath: " & Filepath)
 
@@ -428,6 +478,11 @@ End Function
 
 Function DoublesAreEqual(Double1 As Double, Double2 As Double, Optional EqualDigits As Integer = 8) As Boolean
   DoublesAreEqual = (Round(Double1, EqualDigits) = Round(Double2, EqualDigits))
+End Function
+
+Function DateTimeSerial(Year As Integer, Month As Integer, Day As Integer, _
+Hour As Integer, Minute As Integer, Second As Integer) As Double
+  DateTimeSerial = DateSerial(Year, Month, Day) + TimeSerial(Hour, Minute, Second)
 End Function
 
 '@Description("Returns a new object instance reference. Raises an error if class is not available.")
@@ -652,7 +707,7 @@ Dim rgx As Object
       Err.Raise 13, "libcore.StringRemoveChars", _
         StringMultiline("sRegexpPattern argument must be type of String.", "Type: " & TypeName$(sRegexpPattern))
   Else
-    sRegexpPattern = "[^a-z0-9ˆı¸˚˙Û·È]" ' Welcome from Hungary :)
+    sRegexpPattern = "[^a-z0-9Ûˆı¸˚˙·È]" ' Welcome from Hungary :)
   End If
   
   Set rgx = RegExpObj
