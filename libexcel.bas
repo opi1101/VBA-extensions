@@ -85,28 +85,32 @@ End Sub
 '@Description("Inserts a 2D array to target range. TargetCell is considered to be the desired range's top-left cell.")
 Sub ArrayToRange(Arr2D As Variant, TargetCell As Excel.Range)
 Dim lErr As Long
-  If (TargetCell Is Nothing) Then _
-    Err.Raise 91, "libexcel.ArrayToRange", "TargetCell argument is not set to an insance of an object."
-  If (Not ArrayIsDimmed(Arr2D)) Then _
-    Err.Raise 13, "libexcel.ArrayToRange", _
-    StringMultiline("Arr2D is not assigned or not an array type.", "Type: " & TypeName(Arr2D))
-  If RangeIsMultiArea(TargetCell) Then _
-    Err.Raise 5, "libexcel.ArrayToRange", StringMultiline("Range with multiple areas is not supported.", _
-    "Areas count: " & TargetCell.Areas.Count, _
-    "TargetCell: " & TargetCell.Address)
-  If (ArrayDimensionCount(Arr2D)) <> 2 Then _
-    Err.Raise 13, "libexcel.ArrayToRange", _
-    StringMultiline("Arr2D parameter must be a two dimensional array.", "Dimensions: " & ArrayDimensionCount(Arr2D))
   
   On Error Resume Next
   TargetCell.Cells(1, 1).Resize(UBound(Arr2D, 1), UBound(Arr2D, 2)).Value = Arr2D
   lErr = Err.Number
   On Error GoTo 0
-  Select Case True
-    Case lErr = 438
+
+  Select Case lErr
+    Case 0
+    Case 5
+      If RangeIsMultiArea(TargetCell) Then _
+        Err.Raise 5, "libexcel.ArrayToRange", StringMultiline("Range with multiple areas is not supported.", _
+        "Areas count: " & TargetCell.Areas.Count, "TargetCell: " & TargetCell.Address)
+    Case 13
+      If (Not ArrayIsDimmed(Arr2D)) Then _
+        Err.Raise 13, "libexcel.ArrayToRange", _
+        StringMultiline("Arr2D is not assigned or not an array type.", "Type: " & TypeName(Arr2D))
+      If (ArrayDimensionCount(Arr2D)) <> 2 Then _
+        Err.Raise 13, "libexcel.ArrayToRange", _
+        StringMultiline("Arr2D parameter must be a two dimensional array.", "Dimensions: " & ArrayDimensionCount(Arr2D))
+    Case 91
+      If (TargetCell Is Nothing) Then _
+        Err.Raise 91, "libexcel.ArrayToRange", "TargetCell argument is not set to an insance of an object."
+    Case 438
       Err.Raise 438, "libexcel.ArrayToRange", StringMultiline("Cannot insert objects in range.", _
       "TargetCell: " & TargetCell.Address)
-    Case lErr <> 0
+    Case Else
       Err.Raise lErr, "libexcel.ArrayToRange", StringMultiline("An error has occured while inserting array in range.", _
       "Error: " & Error(lErr), "TargetCell: " & TargetCell.Address)
   End Select
@@ -710,7 +714,7 @@ End Function
 
 '@Description("Returns True if both parameter range's first row (header) has equal values. Uses lower case comparsion.")
 Function RangeHeadersAreEqual(Table1 As Excel.Range, Table2 As Excel.Range) As Boolean
-Dim h1, h2
+Dim h1 As Variant, h2 As Variant
 
   On Error Resume Next
   h1 = Join(RangeRowToArray1D(Table1.Rows(1)))

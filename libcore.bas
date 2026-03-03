@@ -9,13 +9,13 @@ Option Explicit
 '@Description("Returns true, if parameter Application is MS Excel application.")
 Function ApplicationIsExcel(App As Application) As Boolean
   On Error Resume Next
-  ApplicationIsExcel = (InStr(App.Name, "Excel") > 0)
+  ApplicationIsExcel = (App.Name Like "*Excel*")
 End Function
 
 '@Description("Returns true, if parameter Application is MS Access application.")
 Function ApplicationIsAccess(App As Application) As Boolean
   On Error Resume Next
-  ApplicationIsAccess = (InStr(App.Name, "Access") > 0)
+  ApplicationIsAccess = (App.Name Like "*Access*")
 End Function
 
 '@Description("Returns true, if the argument has lower bound (=array, declared and assigned).")
@@ -41,8 +41,9 @@ Dim lSize As Long
     iCount = iCount + 1
     lSize = UBound(Arr, iCount)
   Loop Until Err.Number <> 0
-  On Error GoTo 0
-  ArrayDimensionCount = (iCount - 1)
+  
+  If iCount > 1 Then _
+    ArrayDimensionCount = (iCount - 1)
 End Function
 
 '@Description("Returns the number of elements in the array's specific dimension. TargetDim can be omitted if array is 1D.")
@@ -426,34 +427,34 @@ Dim f As StdFont
 End Function
 
 '@Description("Returns the owner of a directory in domain\username format. Raises an error if the directory is unavailable or doesn't exist.")
-Function DirectoryOwner(ByVal Dirpath As String) As String
+Function DirectoryOwner(ByVal DirPath As String) As String
 Dim secUtil As Object, secDescr As Object
 
-  If StringIsEmptyOrWhitespace(Dirpath) Then _
-    Err.Raise 53, "libcore.DirectoryOwner", StringMultiline("Directory path not provided.", "Path: " & Dirpath)
+  If StringIsEmptyOrWhitespace(DirPath) Then _
+    Err.Raise 53, "libcore.DirectoryOwner", StringMultiline("Directory path not provided.", "Path: " & DirPath)
 
   Set secUtil = NewClassReference("ADsSecurityUtility")
 
-  If Dir(Dirpath, vbDirectory) = vbNullString Then _
-    Err.Raise 53, "libcore.DirectoryOwner", StringMultiline("Directory not found or unavailable.", "Path: " & Dirpath)
+  If Dir(DirPath, vbDirectory) = vbNullString Then _
+    Err.Raise 53, "libcore.DirectoryOwner", StringMultiline("Directory not found or unavailable.", "Path: " & DirPath)
 
   On Error Resume Next
-  Set secDescr = secUtil.GetSecurityDescriptor(CVar(Dirpath), 1, 1)
+  Set secDescr = secUtil.GetSecurityDescriptor(CVar(DirPath), 1, 1)
   DirectoryOwner = secDescr.Owner
 End Function
 
 '@Description("Creates all the folders and subfolders in the specified path. Raises an error if the path is an existing file.")
-Function DirectoryCreate(ByVal Dirpath As String) As Boolean
+Function DirectoryCreate(ByVal DirPath As String) As Boolean
   Select Case True
-    Case Dir(Dirpath, vbNormal) <> vbNullString
+    Case Dir(DirPath, vbNormal) <> vbNullString
       Err.Raise 9, "libcore.DirectoryCreate", StringMultiline("Failed to create directory. DirPath argument is an existing file.", _
-        "DirPath: " & Dirpath)
-    Case Dir(Dirpath, vbDirectory) <> vbNullString
+        "DirPath: " & DirPath)
+    Case Dir(DirPath, vbDirectory) <> vbNullString
       DirectoryCreate = True
       Exit Function
-    Case DirectoryCreate(PathParentDirectory(Dirpath))
+    Case DirectoryCreate(PathParentDirectory(DirPath))
       On Error Resume Next
-      MkDir Dirpath
+      MkDir DirPath
       DirectoryCreate = (Err.Number = 0)
       On Error GoTo 0
   End Select
@@ -504,10 +505,38 @@ Dim xlApp As Object
   Set fd = Nothing
 End Function
 
-Function DoublesAreEqual(Double1 As Double, Double2 As Double, Optional EqualDigits As Integer = 8) As Boolean
-  DoublesAreEqual = (Round(Double1, EqualDigits) = Round(Double2, EqualDigits))
+Function DirectoryPaths(ByVal DirPath As String, Optional Filter As String) As String()
+Dim s As String
+Dim r() As String
+Dim l As Long
+Const MAX_SIZE As Integer = 500
+
+  If Filter = vbNullString Then
+    s = Dir(PathCombine(DirPath, "*"))
+  Else
+    s = Dir(PathCombine(DirPath, Filter))
+  End If
+  
+  ReDim r(1 To MAX_SIZE)
+  Do While s <> vbNullString
+    l = l + 1
+    If l > UBound(r) Then ReDim Preserve r(1 To UBound(r) + MAX_SIZE)
+    r(l) = PathCombine(DirPath, s)
+    s = Dir
+  Loop
+  If l > 0 Then ReDim Preserve r(1 To l)
+  DirectoryPaths = r
 End Function
 
+'@Description("Compares two double values based on a given threshold limit.")
+Function DoublesAreEqual(Double1 As Double, Double2 As Double, Optional Tolerance As Double = 0.000000000000001) As Boolean
+Dim absDiff As Double
+
+  absDiff = Math.Abs(Double1 - Double2)
+  DoublesAreEqual = (absDiff < Tolerance)
+End Function
+
+'@Description("Returns a date and time value.")
 Function DateTimeSerial(Year As Integer, Month As Integer, Day As Integer, _
 Hour As Integer, Minute As Integer, Second As Integer) As Double
   DateTimeSerial = DateSerial(Year, Month, Day) + TimeSerial(Hour, Minute, Second)
@@ -588,12 +617,33 @@ Dim x As Long
 End Function
 
 '@Description("Returns the extension (including the period '.') of the specified path string. Returns vbNullString if no extension was found.")
-Function PathExtension(ByVal Path As String) As String
+Function PathExtension(ByVal Path As String, Optional WithPeriod As Boolean = True) As String
 Dim lIdx As Long
 
   lIdx = InStrRev(Path, ".")
-  If lIdx > 0 Then _
-    PathExtension = Right$(Path, Len(Path) - lIdx + 1)
+  If lIdx > 0 Then
+    If WithPeriod Then
+      PathExtension = Right$(Path, Len(Path) - lIdx + 1)
+    Else
+      PathExtension = Right$(Path, Len(Path) - lIdx)
+    End If
+  End If
+End Function
+
+'@Description("Returns the filename of the specified path string.")
+Function PathFilename(ByVal Path As String, Optional WithExtension As Boolean = True) As String
+Dim lIdx1 As Long, lIdx2 As Long
+
+  lIdx1 = InStrRev(Path, Application.PathSeparator)
+  If lIdx1 > 0 Then
+    If WithExtension Then
+      PathFilename = Mid$(Path, lIdx1 + 1, Len(Path))
+    Else
+      lIdx2 = InStrRev(Path, ".")
+      If lIdx2 > 0 Then _
+        PathFilename = Mid$(Path, lIdx1 + 1, lIdx2 - lIdx1 - 1)
+    End If
+  End If
 End Function
 
 '@Description("Returns the specified path's parent directory.")
@@ -633,6 +683,7 @@ End Function
 
 '@Description("Returns the parameter string where the first character is capitalized.")
 Function StringCapitalize(ByVal Text As String) As String
+  On Error Resume Next
   StringCapitalize = UCase$(Left$(Text, 1)) & LCase$(Mid$(Text, 2))
 End Function
 
